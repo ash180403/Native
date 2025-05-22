@@ -1,11 +1,12 @@
-import { TouchableHighlight } from 'react-native';
 import React, { useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, TouchableHighlight } from 'react-native';
 import styled from 'styled-components/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView } from 'react-native';
 
+// Styled Components
 const SafeWrapper = styled(SafeAreaView)`
   flex: 1;
   background-color: #f9f9f9;
@@ -14,10 +15,9 @@ const SafeWrapper = styled(SafeAreaView)`
 const Container = styled.ScrollView.attrs({
   contentContainerStyle: {
     padding: 24,
-    flexGrow: 1, 
+    flexGrow: 1,
   },
 })``;
-
 
 const Header = styled.View`
   align-items: center;
@@ -26,21 +26,21 @@ const Header = styled.View`
 
 const Logo = styled.Text`
   font-size: 30px;
-  
-  color:rgb(62, 61, 61);
+  color: rgb(62, 61, 61);
   text-shadow: 1.5px 1.5px 1.5px rgb(78, 76, 76);
 `;
 
 const Description = styled.Text`
   text-align: center;
   font-size: 16px;
-  color:rgb(153, 149, 149);
+  color: rgb(153, 149, 149);
   margin-top: 8px;
 `;
 
 const CustomButton = styled(TouchableHighlight).attrs({
-  underlayColor: '#9EDF9C', 
-})`  background-color:rgb(255, 255, 255);
+  underlayColor: '#9EDF9C',
+})`
+  background-color: rgb(255, 255, 255);
   width: 85%;
   align-self: center;
   padding: 14px;
@@ -54,14 +54,12 @@ const CustomButton = styled(TouchableHighlight).attrs({
   elevation: 4;
   border-width: 1px;
   border-color: #809D3C;
-
 `;
 
 const ButtonText = styled.Text`
   color: #809D3C;
   font-size: 17px;
   font-weight: 600;
-  
 `;
 
 const StyledImage = styled.Image`
@@ -79,6 +77,7 @@ const StyledText = styled.Text`
 const BottomSpacing = styled.View`
   margin-bottom: ${Platform.OS === 'ios' ? '40px' : '20px'};
 `;
+
 const InfoCard = styled.View`
   background-color: #fff;
   border-radius: 16px;
@@ -105,10 +104,11 @@ const Row = styled.View`
 `;
 
 const ThumbImage = styled.Image`
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   border-radius: 8px;
   margin-right: 8px;
+  flex: 1;
 `;
 
 const Label = styled.Text`
@@ -124,14 +124,21 @@ const InfoText = styled.Text`
   margin-bottom: 8px;
 `;
 
-
 export default function HomeScreen() {
   const [image, setImage] = useState<string | null>(null);
   const [base64Image, setBase64Image] = useState<string | null>(null);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [address, setAddress] = useState<string | null>(null);
 
-  
+  const localImages = [
+    require('../assets/1.jpg'),
+    require('../assets/2.jpg'),
+    require('../assets/3.jpg'),
+    require('../assets/4.jpg'),
+    require('../assets/5.jpg'),
+    require('../assets/6.jpg'),
+  ];
+
   const takePictureHandler = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -246,30 +253,29 @@ export default function HomeScreen() {
 
         <BottomSpacing />
         <InfoCard>
-  <SectionTitle>Plant Information</SectionTitle>
+          <SectionTitle>Plant Information</SectionTitle>
 
-  <Label>Native plant images</Label>
-  <Row>
-    {[1, 2, 3, 4].map((_, index) => (
-      <ThumbImage
-        key={index}
-        source={{ uri: 'https://via.placeholder.com/60x60.png?text=🌿' }}
-      />
-    ))}
-  </Row>
+          <Label>Native plant images</Label>
+         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+           <Row>
+              {localImages.map((imgSrc, index) => (
+               <ThumbImage key={index} source={imgSrc} />
+              ))} 
+           </Row>
+         </ScrollView>
 
-  <Label>Species</Label>
-  <InfoText>Some plant species</InfoText>
 
-  <Label>Care Requirements</Label>
+          <Label>Species</Label>
+          <InfoText>Some plant species</InfoText>
 
-  <Label>Watering</Label>
-  <InfoText>Water every 2 weeks</InfoText>
+          <Label>Care Requirements</Label>
 
-  <Label>Sunlight</Label>
-  <InfoText>Indirect sunlight</InfoText>
-</InfoCard>
+          <Label>Watering</Label>
+          <InfoText>Water every 2 weeks</InfoText>
 
+          <Label>Sunlight</Label>
+          <InfoText>Indirect sunlight</InfoText>
+        </InfoCard>
       </Container>
     </SafeWrapper>
   );
