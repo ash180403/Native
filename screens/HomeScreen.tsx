@@ -6,7 +6,6 @@ import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
 
-// Styled Components
 const SafeWrapper = styled(SafeAreaView)`
   flex: 1;
   background-color: #f9f9f9;
@@ -207,6 +206,50 @@ export default function HomeScreen() {
     }
   };
 
+const uploadImageToServer = async () => {
+  if (!base64Image) {
+    Alert.alert('No image selected', 'Please take or select an image first.');
+    return;
+  }
+
+  const cleanedBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, '');
+
+  try {
+    const response = await fetch(
+      'https://ko74vhyi5gk6pcuooycyk4oqvi0eedei.lambda-url.ap-southeast-2.on.aws/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image: cleanedBase64,
+        }),
+      }
+    );
+
+    const contentType = response.headers.get('content-type');
+    const rawResponse = await response.text();
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    console.log('Raw response body:', rawResponse);
+
+    if (contentType && contentType.includes('application/json')) {
+      const data = JSON.parse(rawResponse);
+      console.log('Parsed JSON response:', data);
+      Alert.alert('Upload Success', 'Image uploaded successfully!');
+    } else {
+      console.warn('Server response is not JSON:', rawResponse);
+      Alert.alert('Upload Failed', 'Server returned non-JSON response.');
+    }
+  } catch (error) {
+    console.error('Upload failed with error:', error);
+    Alert.alert('Upload Failed', 'Something went wrong while uploading.');
+  }
+};
+
+
   return (
     <SafeWrapper>
       <Container>
@@ -235,17 +278,7 @@ export default function HomeScreen() {
             )}
             {address && <StyledText>Address: {address}</StyledText>}
 
-            <CustomButton
-              onPress={() => {
-                if (base64Image) {
-                  const dataUri = `data:image/jpeg;base64,${base64Image}`;
-                  console.log('Base64 Preview:', dataUri.slice(0, 100) + '...');
-                  Alert.alert('Ready to upload', 'Base64 image is prepared.');
-                } else {
-                  Alert.alert('No image', 'Please take or upload a photo first.');
-                }
-              }}
-            >
+            <CustomButton onPress={uploadImageToServer}>
               <ButtonText>Send Picture</ButtonText>
             </CustomButton>
           </>
@@ -256,14 +289,13 @@ export default function HomeScreen() {
           <SectionTitle>Plant Information</SectionTitle>
 
           <Label>Native plant images</Label>
-         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-           <Row>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <Row>
               {localImages.map((imgSrc, index) => (
-               <ThumbImage key={index} source={imgSrc} />
-              ))} 
-           </Row>
-         </ScrollView>
-
+                <ThumbImage key={index} source={imgSrc} />
+              ))}
+            </Row>
+          </ScrollView>
 
           <Label>Species</Label>
           <InfoText>Some plant species</InfoText>
