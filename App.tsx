@@ -21,8 +21,8 @@ export default function App() {
               case 'Home':
                 iconName = 'home';
                 break;
-              case 'Scan':
-                iconName = 'camera';
+              case 'Payment':
+                iconName = 'card';
                 break;
               case 'My Plants':
                 iconName = 'leaf';
@@ -42,7 +42,7 @@ export default function App() {
         })}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
-        <Tab.Screen name="Scan" component={Scan} />
+        <Tab.Screen name="Payment" component={Scan} />
         <Tab.Screen name="My Plants" component={MyPlants} />
         <Tab.Screen name="Guide" component={GuideScreen} />
       </Tab.Navigator>
