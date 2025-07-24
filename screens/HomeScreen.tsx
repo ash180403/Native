@@ -1,3 +1,4 @@
+// screens/HomeScreen.tsx
 import React, { useState } from 'react';
 import { Alert, Platform, TouchableHighlight } from 'react-native';
 import styled from 'styled-components/native';
@@ -5,6 +6,9 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux'; // Import hooks
+import { setUploadedImage, setPlantInfo } from '../store/plantSlice'; // Import actions
+import { RootState } from '../store/index'; // Import RootState type
 
 const SafeWrapper = styled(SafeAreaView)`
   flex: 1;
@@ -124,10 +128,15 @@ const InfoText = styled.Text`
 `;
 
 export default function HomeScreen() {
-  const [image, setImage] = useState<string | null>(null);
-  const [base64Image, setBase64Image] = useState<string | null>(null);
+  // Use Redux state for image and plant info instead of local state
+  const dispatch = useDispatch();
+  const uploadedImage = useSelector((state: RootState) => state.plant.uploadedImage);
+  const plantInfo = useSelector((state: RootState) => state.plant.plantInfo);
+
+  // Keep local state for transient data like location, address, and base64 string
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [address, setAddress] = useState<string | null>(null);
+  const [currentBase64Image, setCurrentBase64Image] = useState<string | null>(null); // To hold base64 for upload
 
   const localImages = [
     require('../assets/1.jpg'),
@@ -137,6 +146,41 @@ export default function HomeScreen() {
     require('../assets/5.jpg'),
     require('../assets/6.jpg'),
   ];
+
+  const handleImageResult = async (imageResult: ImagePicker.ImagePickerResult) => {
+    if (!imageResult.canceled) {
+      const asset = imageResult.assets[0];
+      // Dispatch action to update Redux store
+      dispatch(setUploadedImage(asset.uri));
+      setCurrentBase64Image(asset.base64 || null); // Store base64 locally for upload
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Location access is needed.');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Highest,
+        maximumAge: 0,
+      });
+
+      setLocation(loc);
+
+      const addressResult = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+
+      if (addressResult.length > 0) {
+        const a = addressResult[0];
+        const full = `${a.name}, ${a.street}, ${a.city}, ${a.region}, ${a.postalCode}, ${a.country}`;
+        setAddress(full);
+      } else {
+        setAddress('Address not found');
+      }
+    }
+  };
 
   const takePictureHandler = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -172,82 +216,53 @@ export default function HomeScreen() {
     handleImageResult(imageResult);
   };
 
-  const handleImageResult = async (imageResult: ImagePicker.ImagePickerResult) => {
-    if (!imageResult.canceled) {
-      const asset = imageResult.assets[0];
-      setImage(asset.uri);
-      setBase64Image(asset.base64 || null);
+  const uploadImageToServer = async () => {
+    if (!currentBase64Image) { // Use the local base64 for the upload
+      Alert.alert('No image selected', 'Please take or select an image first.');
+      return;
+    }
 
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Location access is needed.');
-        return;
-      }
+    const cleanedBase64 = currentBase64Image.replace(/^data:image\/[a-z]+;base64,/, '');
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
-        maximumAge: 0,
-      });
+    try {
+      const response = await fetch(
+        'https://ko74vhyi5gk6pcuooycyk4oqvi0eedei.lambda-url.ap-southeast-2.on.aws/',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image: cleanedBase64,
+          }),
+        }
+      );
 
-      setLocation(loc);
+      const contentType = response.headers.get('content-type');
+      const rawResponse = await response.text();
 
-      const addressResult = await Location.reverseGeocodeAsync({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      });
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      console.log('Raw response body:', rawResponse);
 
-      if (addressResult.length > 0) {
-        const a = addressResult[0];
-        const full = `${a.name}, ${a.street}, ${a.city}, ${a.region}, ${a.postalCode}, ${a.country}`;
-        setAddress(full);
+      if (contentType && contentType.includes('application/json')) {
+        const data = JSON.parse(rawResponse);
+        console.log('Parsed JSON response:', data);
+        Alert.alert('Upload Success', 'Image uploaded successfully!');
+        // Assuming the API returns plant info in 'data.plantInfo' or similar
+        // Dispatch action to save plant info to Redux store
+        dispatch(setPlantInfo(data.plantInfo || 'Plant info not provided'));
       } else {
-        setAddress('Address not found');
+        console.warn('Server response is not JSON:', rawResponse);
+        Alert.alert('Upload Failed', 'Server returned non-JSON response.');
+        dispatch(setPlantInfo('Error: Server returned non-JSON response.'));
       }
+    } catch (error) {
+      console.error('Upload failed with error:', error);
+      Alert.alert('Upload Failed', 'Something went wrong while uploading.');
+      dispatch(setPlantInfo('Error during upload.'));
     }
   };
-
-const uploadImageToServer = async () => {
-  if (!base64Image) {
-    Alert.alert('No image selected', 'Please take or select an image first.');
-    return;
-  }
-
-  const cleanedBase64 = base64Image.replace(/^data:image\/[a-z]+;base64,/, '');
-
-  try {
-    const response = await fetch(
-      'https://ko74vhyi5gk6pcuooycyk4oqvi0eedei.lambda-url.ap-southeast-2.on.aws/',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: cleanedBase64,
-        }),
-      }
-    );
-
-    const contentType = response.headers.get('content-type');
-    const rawResponse = await response.text();
-
-    console.log('Response status:', response.status);
-    console.log('Response headers:', response.headers);
-    console.log('Raw response body:', rawResponse);
-
-    if (contentType && contentType.includes('application/json')) {
-      const data = JSON.parse(rawResponse);
-      console.log('Parsed JSON response:', data);
-      Alert.alert('Upload Success', 'Image uploaded successfully!');
-    } else {
-      console.warn('Server response is not JSON:', rawResponse);
-      Alert.alert('Upload Failed', 'Server returned non-JSON response.');
-    }
-  } catch (error) {
-    console.error('Upload failed with error:', error);
-    Alert.alert('Upload Failed', 'Something went wrong while uploading.');
-  }
-};
 
 
   return (
@@ -268,9 +283,9 @@ const uploadImageToServer = async () => {
           <ButtonText>Upload from Gallery</ButtonText>
         </CustomButton>
 
-        {image && (
+        {uploadedImage && ( // Use uploadedImage from Redux
           <>
-            <StyledImage source={{ uri: image }} />
+            <StyledImage source={{ uri: uploadedImage }} />
             {location && (
               <StyledText>
                 Location: {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
@@ -297,6 +312,11 @@ const uploadImageToServer = async () => {
             </Row>
           </ScrollView>
 
+          {/* Display plantInfo from Redux store */}
+          <Label>Identified Plant Info</Label>
+          <InfoText>{plantInfo || 'Upload an image to get plant information.'}</InfoText>
+
+          {/* Original hardcoded plant info, you might replace these with data from Redux if available */}
           <Label>Species</Label>
           <InfoText>Some plant species</InfoText>
 
