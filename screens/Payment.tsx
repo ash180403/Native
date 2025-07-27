@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Import useEffect
 import styled from 'styled-components/native';
-import { ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, Alert, ActivityIndicator, Platform } from 'react-native'; // Import Platform
 import {
   useStripe,
   CardForm,
   PaymentIntent,
+  usePlatformPay, // Import usePlatformPay
+  PlatformPayButton, // Import PlatformPayButton
+  PlatformPay, // Import PlatformPay types
 } from '@stripe/stripe-react-native';
 
 const Container = styled.SafeAreaView`
@@ -92,15 +95,41 @@ const TestCardText = styled.Text`
   line-height: 22px;
 `;
 
+// Styled component for Google Pay button to match your existing button style if desired
+const StyledPlatformPayButton = styled(PlatformPayButton)`
+  width: 100%;
+  height: 50px; /* Standard button height for Google Pay */
+  margin-top: 20px; /* Spacing */
+`;
+
+
 const BACKEND_URL = 'http://192.168.29.222:3000/create-payment-intent';
 
 export default function PaymentScreen() {
   const { confirmPayment } = useStripe();
+  const { isPlatformPaySupported, confirmPlatformPayPayment } = usePlatformPay(); // Destructure from usePlatformPay
   const [loading, setLoading] = useState(false);
   const [cardDetailsComplete, setCardDetailsComplete] = useState(false);
+  const [googlePaySupported, setGooglePaySupported] = useState(false); // New state for Google Pay support
 
   const amountToPay = 1999; // $19.99
-  const currency = 'usd';
+  const currency = 'usd'; // Match this with your backend's expected currency
+
+  // Check for Google Pay support on component mount
+  useEffect(() => {
+    async function checkSupport() {
+      if (Platform.OS === 'android') { // Google Pay is Android-specific
+        const supported = await isPlatformPaySupported({
+          googlePay: {
+            testEnv: true, // Set to false for production
+          },
+        });
+        setGooglePaySupported(supported);
+      }
+    }
+    checkSupport();
+  }, [isPlatformPaySupported]);
+
 
   const fetchClientSecret = async (): Promise<string | null> => {
     try {
@@ -109,7 +138,11 @@ export default function PaymentScreen() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ amount: amountToPay, currency }),
+        // It's good practice to send the payment method type to the backend
+        // so it can create a PaymentIntent with the correct capabilities.
+        // For Google Pay, it's 'card' by default or 'google_pay' if specifically enabled on PI.
+        // For simplicity here, we'll assume 'card' is sufficient.
+        body: JSON.stringify({ amount: amountToPay, currency, paymentMethodType: 'card' }), // Add paymentMethodType
       });
 
       const data = await response.json();
@@ -121,6 +154,7 @@ export default function PaymentScreen() {
 
       return data.clientSecret;
     } catch (error) {
+      console.error("Fetch client secret error:", error); // Log the actual error
       Alert.alert('Network Error', 'Could not connect to backend.');
       return null;
     }
@@ -146,13 +180,60 @@ export default function PaymentScreen() {
 
     if (error) {
       Alert.alert('Payment Failed', error.message || 'Try again later.');
-    } else if (paymentIntent?.status === 'Succeeded' ) {
+    } else if (paymentIntent?.status === 'Succeeded') {
       Alert.alert('Success', 'Payment completed!');
     } else {
       Alert.alert('Payment Status', `Status: ${paymentIntent?.status}`);
     }
 
     setLoading(false);
+  };
+
+
+  const handleGooglePayPress = async () => {
+    setLoading(true); // Indicate loading for Google Pay as well
+
+    const clientSecret = await fetchClientSecret();
+
+    if (!clientSecret) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Configuration for Google Pay
+      const googlePayConfig = {
+  testEnv: true,
+  merchantName: 'Your Business Name',
+  merchantCountryCode: 'IN',
+  currencyCode: currency.toUpperCase(),
+  billingAddressConfig: {
+    format: PlatformPay.BillingAddressFormat.Full,
+    isPhoneNumberRequired: false,
+    isRequired: false,
+  },
+};
+
+      const { paymentIntent, error } = await confirmPlatformPayPayment(
+        clientSecret,
+        {
+          googlePay: googlePayConfig,
+        }
+      );
+
+      if (error) {
+        Alert.alert('Google Pay Failed', error.message || 'Google Pay transaction failed.');
+      } else if (paymentIntent?.status === 'Succeeded') {
+        Alert.alert('Success', 'Google Pay payment completed!');
+      } else {
+        Alert.alert('Google Pay Status', `Status: ${paymentIntent?.status}`);
+      }
+    } catch (e) {
+      console.error("Google Pay error:", e);
+      Alert.alert('Google Pay Error', 'An unexpected error occurred with Google Pay.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -177,19 +258,24 @@ export default function PaymentScreen() {
           />
         </Section>
 
-        <TestCardInfo>
-          <TestCardText>💳 Test Card Number: 4242 4242 4242 4242</TestCardText>
-          <TestCardText>📅 Expiry: Any future date (e.g., 04/27)</TestCardText>
-          <TestCardText>🔐 CVC: Any 3-digit (e.g., 123)</TestCardText>
-          <TestCardText>🌍 Country: India (or any)</TestCardText>
-        </TestCardInfo>
-
+        {/* Google Pay Button */}
+       {Platform.OS === 'android' && googlePaySupported && (
+  <Section>
+    <Label>Pay with Google Pay</Label>
+   <PlatformPayButton
+  type={PlatformPay.ButtonType.Pay}
+  style={{ width: '100%', height: 50, marginTop: 20 }}
+  onPress={handleGooglePayPress}
+  disabled={loading}
+/>
+  </Section>
+)}
         <AmountBox>
           <AmountText>Total Amount: ${(amountToPay / 100).toFixed(2)}</AmountText>
         </AmountBox>
 
         <PayButton onPress={handlePayPress} disabled={loading || !cardDetailsComplete}>
-          {loading ? <ActivityIndicator color="#ffffff" /> : <PayButtonText>Pay Now</PayButtonText>}
+          {loading ? <ActivityIndicator color="#ffffff" /> : <PayButtonText>Pay Now (Card)</PayButtonText>}
         </PayButton>
       </ScrollWrapper>
     </Container>
