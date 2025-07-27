@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
 import styled from 'styled-components/native';
-import { ScrollView } from 'react-native';
+import { ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  useStripe,
+  CardForm,
+  PaymentIntent,
+} from '@stripe/stripe-react-native';
 
 const Container = styled.SafeAreaView`
   flex: 1;
   background-color: #f6f7fb;
 `;
 
-const ScrollWrapper = styled(ScrollView).attrs({
+const ScrollWrapper = styled.ScrollView.attrs({
   contentContainerStyle: {
     padding: 24,
     paddingBottom: 60,
@@ -33,29 +38,17 @@ const Label = styled.Text`
   margin-bottom: 6px;
 `;
 
-const Input = styled.TextInput`
+const StyledCardForm = styled(CardForm)`
+  height: 200px;
+  margin-bottom: 20px;
   background-color: #ffffff;
-  padding: 14px 18px;
   border-radius: 12px;
-  font-size: 16px;
-  color: #111827;
   border: 1px solid #d1d5db;
-
   shadow-color: #000;
   shadow-offset: 0px 1px;
   shadow-opacity: 0.05;
   shadow-radius: 2px;
   elevation: 1;
-`;
-
-const Row = styled.View`
-  flex-direction: row;
-  justify-content: space-between;
-  gap: 12px;
-`;
-
-const HalfInput = styled(Input)`
-  flex: 1;
 `;
 
 const AmountBox = styled.View`
@@ -77,12 +70,6 @@ const PayButton = styled.TouchableOpacity`
   border-radius: 14px;
   align-items: center;
   margin-top: 28px;
-
-  shadow-color: #000;
-  shadow-offset: 0px 3px;
-  shadow-opacity: 0.1;
-  shadow-radius: 4px;
-  elevation: 4;
 `;
 
 const PayButtonText = styled.Text`
@@ -91,60 +78,118 @@ const PayButtonText = styled.Text`
   font-weight: 700;
 `;
 
+const TestCardInfo = styled.View`
+  margin-top: 10px;
+  background-color: #fff7ed;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed #fbbf24;
+`;
+
+const TestCardText = styled.Text`
+  font-size: 14px;
+  color: #92400e;
+  line-height: 22px;
+`;
+
+const BACKEND_URL = 'http://192.168.29.222:3000/create-payment-intent';
+
 export default function PaymentScreen() {
+  const { confirmPayment } = useStripe();
+  const [loading, setLoading] = useState(false);
+  const [cardDetailsComplete, setCardDetailsComplete] = useState(false);
+
+  const amountToPay = 1999; // $19.99
+  const currency = 'usd';
+
+  const fetchClientSecret = async (): Promise<string | null> => {
+    try {
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount: amountToPay, currency }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.clientSecret) {
+        Alert.alert('Server Error', data.error || 'Failed to get client secret.');
+        return null;
+      }
+
+      return data.clientSecret;
+    } catch (error) {
+      Alert.alert('Network Error', 'Could not connect to backend.');
+      return null;
+    }
+  };
+
+  const handlePayPress = async () => {
+    if (!cardDetailsComplete) {
+      Alert.alert('Incomplete Details', 'Please complete the card form.');
+      return;
+    }
+
+    setLoading(true);
+    const clientSecret = await fetchClientSecret();
+
+    if (!clientSecret) {
+      setLoading(false);
+      return;
+    }
+
+    const { paymentIntent, error } = await confirmPayment(clientSecret, {
+      paymentMethodType: 'Card',
+    });
+
+    if (error) {
+      Alert.alert('Payment Failed', error.message || 'Try again later.');
+    } else if (paymentIntent?.status === 'Succeeded' ) {
+      Alert.alert('Success', 'Payment completed!');
+    } else {
+      Alert.alert('Payment Status', `Status: ${paymentIntent?.status}`);
+    }
+
+    setLoading(false);
+  };
+
   return (
     <Container>
       <ScrollWrapper showsVerticalScrollIndicator={false}>
         <Title>Payment Details</Title>
 
         <Section>
-          <Label>Cardholder Name</Label>
-          <Input placeholder="John Doe" placeholderTextColor="#9ca3af" />
-        </Section>
-
-        <Section>
-          <Label>Card Number</Label>
-          <Input
-            placeholder="1234 5678 9012 3456"
-            keyboardType="numeric"
-            placeholderTextColor="#9ca3af"
+          <Label>Card Details</Label>
+          <StyledCardForm
+            onFormComplete={(cardDetails) => {
+              setCardDetailsComplete(cardDetails.complete);
+            }}
+            cardStyle={{
+              backgroundColor: '#ffffff',
+              textColor: '#111827',
+              placeholderColor: '#9ca3af',
+              borderColor: '#d1d5db',
+              borderWidth: 1,
+              borderRadius: 12,
+            }}
           />
         </Section>
 
-        <Row>
-          <Section style={{ flex: 1 }}>
-            <Label>Expiry Date</Label>
-            <HalfInput
-              placeholder="MM/YY"
-              keyboardType="numeric"
-              placeholderTextColor="#9ca3af"
-              maxLength={5}
-            />
-          </Section>
-
-          <Section style={{ flex: 1 }}>
-            <Label>CVV</Label>
-            <HalfInput
-              placeholder="123"
-              keyboardType="numeric"
-              placeholderTextColor="#9ca3af"
-              maxLength={4}
-              secureTextEntry
-            />
-          </Section>
-        </Row>
-
-        <Section>
-          <Label>Billing Zip Code</Label>
-          <Input placeholder="12345" keyboardType="numeric" placeholderTextColor="#9ca3af" />
-        </Section>
+        <TestCardInfo>
+          <TestCardText>💳 Test Card Number: 4242 4242 4242 4242</TestCardText>
+          <TestCardText>📅 Expiry: Any future date (e.g., 04/27)</TestCardText>
+          <TestCardText>🔐 CVC: Any 3-digit (e.g., 123)</TestCardText>
+          <TestCardText>🌍 Country: India (or any)</TestCardText>
+        </TestCardInfo>
 
         <AmountBox>
-          <AmountText>Total Amount: $19.99</AmountText>
+          <AmountText>Total Amount: ${(amountToPay / 100).toFixed(2)}</AmountText>
         </AmountBox>
 
-        <PayButton onPress={() => alert('Payment Successful')}>
-          <PayButtonText>Pay Now</PayButtonText>
+        <PayButton onPress={handlePayPress} disabled={loading || !cardDetailsComplete}>
+          {loading ? <ActivityIndicator color="#ffffff" /> : <PayButtonText>Pay Now</PayButtonText>}
         </PayButton>
       </ScrollWrapper>
     </Container>
