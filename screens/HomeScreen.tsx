@@ -30,7 +30,7 @@ const Header = styled.View`
 const Logo = styled.Text`
   font-size: 30px;
   color: rgb(62, 61, 61);
-  text-shadow: 1.5px 1.5px 1.5px rgb(78, 76, 76);
+  text-shadow: 1px 1px 1px rgb(78, 76, 76);
 `;
 
 const Description = styled.Text`

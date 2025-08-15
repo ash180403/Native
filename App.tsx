@@ -13,9 +13,9 @@ export default function App() {
     <Provider store={store}>
       <StripeProvider publishableKey="pk_test_51RWvlgCtoFQ1cnwJR1zrzxsiZejqI0e9giqCjRuGOaMtvMi1QICUkYKh3l46x1u4A3DdAy6c5W2rXXigl8N8yYaT00n4sRp4O6">
         <NavigationContainer>
-          {/* <MainTabs /> */}
+          <MainTabs />
           {/* Uncomment the line below to switch between AuthStack and MainTabs based on isLoggedIn */}
-           {isLoggedIn ? <MainTabs /> : <AuthStack />} 
+           {/* {isLoggedIn ? <MainTabs /> : <AuthStack />}  */}
         </NavigationContainer>
       </StripeProvider>
     </Provider>
