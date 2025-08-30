@@ -1,21 +1,34 @@
+// screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../lib/supabase'; // Import the Supabase client
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false); // Add loading state
 
-  const handleLogin = () => {
-    if (email === 'demo@example.com' && password === '123456') {
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }], // We'll set this name in App.tsx as a stack route
-      });
-    } else {
-      Alert.alert('Invalid Credentials', 'Email or password is incorrect.');
+  const handleLogin = async () => {
+    setLoading(true);
+    const { data: { session }, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      Alert.alert('Login Error', error.message);
+    } else if (session) {
+      // Alert.alert('Success', 'Logged in!');
+      // Navigate to your main application screen, resetting the navigation stack
+      // navigation.reset({
+      //   index: 0,
+      //   routes: [{ name: 'MainTabs' }],
+      // });
     }
+
+    setLoading(false);
   };
 
   return (
@@ -40,8 +53,8 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
         
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Logging In...' : 'Login'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
@@ -50,6 +63,7 @@ export default function LoginScreen() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
