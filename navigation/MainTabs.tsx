@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import PaymentScreen from '../screens/Payment';
 import MyPlants from '../screens/MyPlants';
-import GuideScreen from '../screens/GuideScreen';
+import Profile from '../screens/Profile';
 
 const Tab = createBottomTabNavigator();
 
@@ -25,8 +25,8 @@ export default function MainTabs() {
             case 'My Plants':
               iconName = 'leaf';
               break;
-            case 'Guide':
-              iconName = 'book';
+            case 'Profile':
+              iconName = 'person-circle';
               break;
             default:
               iconName = 'ellipse';
@@ -42,7 +42,7 @@ export default function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Payment" component={PaymentScreen} />
       <Tab.Screen name="My Plants" component={MyPlants} />
-      <Tab.Screen name="Guide" component={GuideScreen} />
+      <Tab.Screen name="Profile" component={Profile} />
     </Tab.Navigator>
   );
 }

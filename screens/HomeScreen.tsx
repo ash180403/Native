@@ -1,14 +1,21 @@
 // screens/HomeScreen.tsx
 import React, { useState } from 'react';
-import { Alert, Platform, TouchableHighlight } from 'react-native';
+import {
+  Alert,
+  Platform,
+  TouchableHighlight,
+  ActivityIndicator,
+} from 'react-native';
 import styled from 'styled-components/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux'; // Import hooks
-import { setUploadedImage, setPlantInfo } from '../store/plantSlice'; // Import actions
-import { RootState } from '../store/index'; // Import RootState type
+import { useDispatch, useSelector } from 'react-redux';
+import { setUploadedImage, setPlantInfo } from '../store/plantSlice';
+import { RootState } from '../store/index';
+import { supabase } from '../lib/supabase';
+import * as FileSystem from 'expo-file-system';
 
 const SafeWrapper = styled(SafeAreaView)`
   flex: 1;
@@ -43,7 +50,7 @@ const Description = styled.Text`
 const CustomButton = styled(TouchableHighlight).attrs({
   underlayColor: '#9EDF9C',
 })`
-  background-color: rgb(255, 255, 255);
+  background-color: #fff;
   width: 85%;
   align-self: center;
   padding: 14px;
@@ -128,15 +135,16 @@ const InfoText = styled.Text`
 `;
 
 export default function HomeScreen() {
-  // Use Redux state for image and plant info instead of local state
   const dispatch = useDispatch();
-  const uploadedImage = useSelector((state: RootState) => state.plant.uploadedImage);
+  const uploadedImage = useSelector(
+    (state: RootState) => state.plant.uploadedImage
+  );
   const plantInfo = useSelector((state: RootState) => state.plant.plantInfo);
 
-  // Keep local state for transient data like location, address, and base64 string
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [currentBase64Image, setCurrentBase64Image] = useState<string | null>(null); // To hold base64 for upload
+  const [localUri, setLocalUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const localImages = [
     require('../assets/1.jpg'),
@@ -147,122 +155,131 @@ export default function HomeScreen() {
     require('../assets/6.jpg'),
   ];
 
+  const uploadImageToSupabase = async (uri: string) => {
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
+
+    if (sessionError || !session?.user) {
+      Alert.alert('Authentication Error', 'You must be logged in to upload.');
+      return null;
+    }
+
+    const userId = session.user.id;
+    const ext = uri.split('.').pop();
+    const fileName = `${Date.now()}.${ext}`;
+    const filePath = `${userId}/${fileName}`;
+
+    try {
+      setLoading(true);
+
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const fileBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+
+      const { error } = await supabase.storage
+        .from('plant-images')
+        .upload(filePath, fileBytes, {
+          contentType: 'image/jpeg',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      const { data } = supabase.storage
+        .from('plant-images')
+        .getPublicUrl(filePath);
+
+      console.log('✅ Image uploaded successfully:', data.publicUrl);
+
+      return data.publicUrl;
+    } catch (err: any) {
+      console.error('❌ Upload failed:', err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImageResult = async (imageResult: ImagePicker.ImagePickerResult) => {
     if (!imageResult.canceled) {
       const asset = imageResult.assets[0];
-      // Dispatch action to update Redux store
-      dispatch(setUploadedImage(asset.uri));
-      setCurrentBase64Image(asset.base64 || null); // Store base64 locally for upload
+      setLocalUri(asset.uri);
 
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission required', 'Location access is needed.');
-        return;
-      }
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest,
+        });
+        setLocation(loc);
 
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Highest,
-        maximumAge: 0,
-      });
+        const addressResult = await Location.reverseGeocodeAsync({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+        });
 
-      setLocation(loc);
-
-      const addressResult = await Location.reverseGeocodeAsync({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-      });
-
-      if (addressResult.length > 0) {
-        const a = addressResult[0];
-        const full = `${a.name}, ${a.street}, ${a.city}, ${a.region}, ${a.postalCode}, ${a.country}`;
-        setAddress(full);
-      } else {
-        setAddress('Address not found');
+        if (addressResult.length > 0) {
+          const a = addressResult[0];
+          setAddress(
+            `${a.name}, ${a.street}, ${a.city}, ${a.region}, ${a.postalCode}, ${a.country}`
+          );
+        }
       }
     }
   };
 
   const takePictureHandler = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permissionResult.granted) {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
       Alert.alert('Permission required', 'Camera access is needed.');
       return;
     }
-
     const imageResult = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.5,
-      base64: true,
     });
-
     handleImageResult(imageResult);
   };
 
   const uploadFromGalleryHandler = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
       Alert.alert('Permission required', 'Gallery access is needed.');
       return;
     }
-
     const imageResult = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.5,
-      base64: true,
     });
-
     handleImageResult(imageResult);
   };
 
-  const uploadImageToServer = async () => {
-    if (!currentBase64Image) { // Use the local base64 for the upload
-      Alert.alert('No image selected', 'Please take or select an image first.');
-      return;
-    }
+const sendPictureHandler = async () => {
+  if (!localUri) {
+    Alert.alert('No image', 'Please select an image first.');
+    return;
+  }
 
-    const cleanedBase64 = currentBase64Image.replace(/^data:image\/[a-z]+;base64,/, '');
+  const publicUrl = await uploadImageToSupabase(localUri);
 
-    try {
-      const response = await fetch(
-        'https://ko74vhyi5gk6pcuooycyk4oqvi0eedei.lambda-url.ap-southeast-2.on.aws/',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image: cleanedBase64,
-          }),
-        }
-      );
+  if (publicUrl) {
+    dispatch(setUploadedImage(publicUrl));
+    dispatch(
+      setPlantInfo(
+        'Uploaded successfully to Supabase. Plant recognition not connected yet.'
+      )
+    );
 
-      const contentType = response.headers.get('content-type');
-      const rawResponse = await response.text();
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-      console.log('Raw response body:', rawResponse);
-
-      if (contentType && contentType.includes('application/json')) {
-        const data = JSON.parse(rawResponse);
-        console.log('Parsed JSON response:', data);
-        Alert.alert('Upload Success', 'Image uploaded successfully!');
-        // Assuming the API returns plant info in 'data.plantInfo' or similar
-        // Dispatch action to save plant info to Redux store
-        dispatch(setPlantInfo(data.plantInfo || 'Plant info not provided'));
-      } else {
-        console.warn('Server response is not JSON:', rawResponse);
-        Alert.alert('Upload Failed', 'Server returned non-JSON response.');
-        dispatch(setPlantInfo('Error: Server returned non-JSON response.'));
-      }
-    } catch (error) {
-      console.error('Upload failed with error:', error);
-      Alert.alert('Upload Failed', 'Something went wrong while uploading.');
-      dispatch(setPlantInfo('Error during upload.'));
-    }
-  };
+    // ✅ Reset UI to fresh state
+    setLocalUri(null);
+    setLocation(null);
+    setAddress(null);
+  }
+};
 
 
   return (
@@ -271,7 +288,8 @@ export default function HomeScreen() {
         <Header>
           <Logo>🌿 Plant Lense</Logo>
           <Description>
-            Identify plants and learn about their care. Take a photo or upload an image to get started.
+            Identify plants and learn about their care. Take a photo or upload
+            an image to get started.
           </Description>
         </Header>
 
@@ -283,40 +301,45 @@ export default function HomeScreen() {
           <ButtonText>Upload from Gallery</ButtonText>
         </CustomButton>
 
-        {uploadedImage && ( // Use uploadedImage from Redux
+        {localUri && (
           <>
-            <StyledImage source={{ uri: uploadedImage }} />
+            <StyledImage source={{ uri: localUri }} />
             {location && (
               <StyledText>
-                Location: {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+                Location: {location.coords.latitude.toFixed(5)},{' '}
+                {location.coords.longitude.toFixed(5)}
               </StyledText>
             )}
             {address && <StyledText>Address: {address}</StyledText>}
-
-            <CustomButton onPress={uploadImageToServer}>
-              <ButtonText>Send Picture</ButtonText>
+            <CustomButton onPress={sendPictureHandler} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#809D3C" />
+              ) : (
+                <ButtonText>Send Picture</ButtonText>
+              )}
             </CustomButton>
           </>
         )}
 
         <BottomSpacing />
+
         <InfoCard>
           <SectionTitle>Plant Information</SectionTitle>
 
           <Label>Native plant images</Label>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <Row>
-              {localImages.map((imgSrc, index) => (
-                <ThumbImage key={index} source={imgSrc} />
+              {localImages.map((img, i) => (
+                <ThumbImage key={i} source={img} />
               ))}
             </Row>
           </ScrollView>
 
-          {/* Display plantInfo from Redux store */}
           <Label>Identified Plant Info</Label>
-          <InfoText>{plantInfo || 'Upload an image to get plant information.'}</InfoText>
+          <InfoText>
+            {plantInfo || 'Upload an image to get plant information.'}
+          </InfoText>
 
-          {/* Original hardcoded plant info, you might replace these with data from Redux if available */}
           <Label>Species</Label>
           <InfoText>Some plant species</InfoText>
 
