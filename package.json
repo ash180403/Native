@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",
+    "@react-native-picker/picker": "^2.11.1",
     "@react-navigation/bottom-tabs": "^7.3.13",
     "@react-navigation/native": "^7.1.9",
     "@react-navigation/native-stack": "^7.3.23",
@@ -21,6 +22,7 @@
     "@supabase/supabase-js": "^2.55.0",
     "expo": "~53.0.9",
     "expo-camera": "~16.1.6",
+    "expo-file-system": "~18.1.11",
     "expo-image-picker": "~16.1.4",
     "expo-location": "~18.1.4",
     "expo-status-bar": "~2.2.3",
@@ -34,8 +36,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-vector-icons": "^10.2.0",
     "react-redux": "^9.2.0",
-    "styled-components": "^6.1.18",
-    "expo-file-system": "~18.1.11"
+    "styled-components": "^6.1.18"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
