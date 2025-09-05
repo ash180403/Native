@@ -1,4 +1,3 @@
-// screens/ProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { Alert, ScrollView, ActivityIndicator } from 'react-native';
 import styled from 'styled-components/native';
@@ -83,7 +82,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>({
     full_name: '',
     email: '',
-    phone: '',
+    contact: '',
     country_code: '+91',
     dob: '',
     gender: 'Other',
@@ -103,7 +102,7 @@ export default function ProfileScreen() {
     setProfile((p: any) => ({ ...p, email: user.email }));
 
     const { data, error } = await supabase
-      .from('Profile-details')
+      .from('profile-details')
       .select('*')
       .eq('user_id', user.id)
       .single();
@@ -138,7 +137,7 @@ const saveProfile = async () => {
   };
 
   const { error } = await supabase
-    .from('Profile-details')
+    .from('profile-details')
     .upsert(payload, { onConflict: 'user_id' });
 
   if (error) {
