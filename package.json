@@ -4,10 +4,9 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "clean": "rm -rf node_modules/ && rm -rf ios/Pods && watchman watch-del-all && rm -rf $TMPDIR/metro-* && rm -rf $TMPDIR/haste-* && npm cache clean --force",
-    "prepare-all": "npm run clean && npm install && cd ios && pod install && cd .. && npm run ios",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "clean": "rimraf node_modules .expo .turbo package-lock.json yarn.lock",
+    "prepare-ios": "npm run clean && npm install && npx expo start --clear --ios",
+    "prepare-android": "npm run clean && npm install && npx expo start --clear --android",
     "web": "expo start --web",
     "test": "jest"
   },
@@ -50,6 +49,7 @@
     "jest-expo": "^53.0.9",
     "metro-react-native-babel-preset": "^0.77.0",
     "react-test-renderer": "19.0.0",
+    "rimraf": "^6.0.1",
     "typescript": "~5.8.3"
   },
   "private": true
