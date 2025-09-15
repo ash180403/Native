@@ -3,8 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import PaymentScreen from '../screens/Payment';
-import MyPlants from '../screens/MyPlants';
+// import MyPlants from '../screens/MyPlants';
 import Profile from '../screens/Profile';
+import { SubscriptionScreen } from '../SubscriptionPlans';
 
 const Tab = createBottomTabNavigator();
 
@@ -22,8 +23,8 @@ export default function MainTabs() {
             case 'Payment':
               iconName = 'card';
               break;
-            case 'My Plants':
-              iconName = 'leaf';
+            case 'Subscription':
+              iconName = 'pricetag';
               break;
             case 'Profile':
               iconName = 'person-circle';
@@ -41,7 +42,7 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Payment" component={PaymentScreen} />
-      <Tab.Screen name="My Plants" component={MyPlants} />
+      <Tab.Screen name="Subscription" component={SubscriptionScreen} />
       <Tab.Screen name="Profile" component={Profile} />
     </Tab.Navigator>
   );
