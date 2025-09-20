@@ -30,7 +30,6 @@ export const IconBox = styled.View`
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background-color: #3B82F6;
   margin-right: 10px;
 `;
 

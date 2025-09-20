@@ -39,11 +39,34 @@ export const PlanCard: React.FC<PlanCardProps> = ({ plan, onPress }) => {
     return null;
   };
 
+  const getIconColor = (planName: string) => {
+    switch (planName) {
+      case 'Starter':
+        return '#81B29A';
+      case 'Contractor':
+        return '#4ADE80';
+      case 'Bronze':
+        return '#E59124';
+      case 'Silver':
+        return '#9CA3AF';
+      case 'Gold':
+        return '#FBBF24';
+      case 'Platinum':
+        return '#8B5CF6';
+      case 'Double Platinum':
+        return '#A78BFA';
+      case 'Triple Platinum':
+        return '#6366F1';
+      default:
+        return '#3B82F6';
+    }
+  };
+
   return (
     <CardWrapper isCurrent={plan.tag === 'Your Current Plan'} isRecommended={plan.tag === 'Recommended'}>
       <HeaderRow>
         <NameWrapper>
-          <IconBox />
+          <IconBox style={{ backgroundColor: getIconColor(plan.name) }} />
           <PlanName>{plan.name}</PlanName>
         </NameWrapper>
         {renderTag()}
@@ -55,16 +78,15 @@ export const PlanCard: React.FC<PlanCardProps> = ({ plan, onPress }) => {
       <FeaturesTitle>Everything in previous plan, plus:</FeaturesTitle>
 
       {plan.features.map((feature) => (
-  <FeatureRow key={feature.id}>
-    <Ionicons
-      name={feature.isIncluded ? 'checkmark' : 'close'}
-      size={16}
-      color={feature.isIncluded ? '#22C55E' : '#EF4444'}
-    />
-    <FeatureText>{feature.text}</FeatureText>
-  </FeatureRow>
-))}
-
+        <FeatureRow key={feature.id}>
+          <Ionicons
+            name={feature.isIncluded ? 'checkmark' : 'close'}
+            size={16}
+            color={feature.isIncluded ? '#22C55E' : '#EF4444'}
+          />
+          <FeatureText>{feature.text}</FeatureText>
+        </FeatureRow>
+      ))}
 
       <PriceButton onPress={onPress}>
         <PriceButtonText>From ${plan.priceAmount}/year</PriceButtonText>

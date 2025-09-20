@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  Container,
   ScrollWrapper,
   SectionTitle,
   SectionDescription,
@@ -11,11 +10,12 @@ import {
   HeaderContainer,
   BackButton,
   ScreenTitle,
-  CloseButton,
-} from './styles/SubscriptionStyles';
+  CloseButton, 
+} from './styles/SubscriptionScreenStyles';
 import { PlanCard } from './components/PlanCard';
 import { useSubscriptionPlans } from './hooks/useSubscriptionPlans';
 import { ToggleButton } from './components/ToggleButton';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 type MainTabParamList = {
   Home: undefined;
@@ -24,7 +24,6 @@ type MainTabParamList = {
   Profile: undefined;
 };
 
-import { StackNavigationProp } from '@react-navigation/stack';
 type SubscriptionScreenNavigationProp = StackNavigationProp<MainTabParamList, 'Subscription'>;
 
 export default function SubscriptionScreen() {
@@ -34,18 +33,17 @@ export default function SubscriptionScreen() {
   const handlePressPlan = () => {
     console.log("Plan button pressed!");
     // Logic for what happens when a plan is selected.
-    // We can add navigation to a payment screen here later.
   };
 
   return (
-    <Container>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
       <HeaderContainer>
         <BackButton onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="chevron-back" size={24} color="#1F2937" />
         </BackButton>
-        <ScreenTitle>Select Plan</ScreenTitle>
-        <CloseButton onPress={() => navigation.navigate('Home')}>
-          <Ionicons name="close" size={24} color="#1F2937" />
+        <ScreenTitle>Your Subscriptions</ScreenTitle>
+        <CloseButton onPress={() => console.log("Close pressed!")}>
+           <Ionicons name="close" size={24} color="#1F2937" />
         </CloseButton>
       </HeaderContainer>
 
@@ -62,8 +60,7 @@ export default function SubscriptionScreen() {
         ))}
         
         <ToggleButton isVisible={showAllPlans} onPress={toggleAllPlans} />
-
       </ScrollWrapper>
-    </Container>
+    </SafeAreaView>
   );
 }

@@ -59,3 +59,23 @@ export const ToggleContainer = styled.View`
   margin-top: 10px;
   margin-bottom: 20px;
 `;
+
+export const ToggleRow = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+`; 
+
+export const ToggleText = styled.Text`
+  font-size: 18px;
+  color: #000000ff;
+  margin-right: 10px;`;
+
+  export const NextStepText = styled.Text`
+  font-size: 14px;
+  color: #a0a0a0ff;
+  text-align: center;
+  margin-top: 5px;
+  padding-bottom: 10px;
+`;
